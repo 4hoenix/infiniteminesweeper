@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Infinite Minesweeper</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚩</text></svg>">
     <style>
         :root {
@@ -23,48 +24,48 @@
         #hud {
             position: absolute; top: 10px; left: 10px; z-index: 100;
             background: var(--panel); border: 3px outset var(--outset);
-            width: 96px; padding: 3px; display: flex; flex-direction: column; gap: 3px;
+            width: 110px; padding: 5px; display: flex; flex-direction: column; gap: 5px;
         }
-        #minimap-frame { width: 90px; height: 90px; border: 2px inset var(--outset); background: #000; }
+        #minimap-frame { width: 100px; height: 100px; border: 2px inset var(--outset); background: #000; }
         #stats-bar {
             width: 100%; background: #000; color: var(--accent);
-            font-family: 'Courier New', monospace; font-size: 11px;
-            padding: 2px 5px; border: 2px inset var(--inset); box-sizing: border-box;
+            font-family: 'Courier New', monospace; font-size: 14px;
+            padding: 4px 5px; border: 2px inset var(--inset); box-sizing: border-box;
             display: flex; justify-content: space-between;
         }
 
-        #top-right { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 100; }
+        #top-right { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }
         .sq-btn {
-            width: 40px; height: 40px; background: var(--panel); border: 3px outset var(--outset);
+            width: 50px; height: 50px; background: var(--panel); border: 3px outset var(--outset);
             cursor: pointer; display: flex; align-items: center; justify-content: center; 
-            font-weight: bold; color: var(--accent);
+            font-weight: bold; color: var(--accent); font-size: 18px;
         }
         .sq-btn:active { border-style: inset; }
 
         #side-menu {
-            display: none; position: fixed; top: 55px; right: 10px; width: 220px;
+            display: none; position: fixed; top: 70px; right: 10px; width: 240px;
             background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 101;
-            color: var(--accent);
+            color: var(--accent); box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         #side-menu.active { display: block; }
-        .menu-row { display: flex; justify-content: space-between; font-size: 11px; margin: 8px 0; font-family: monospace; }
+        .menu-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin: 12px 0; font-family: monospace; }
         
         .modal {
-            display: none; position: fixed; top: 55px; right: 55px;
-            background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 200; 
+            display: none; position: fixed; top: 70px; right: 10px; left: 10px;
+            background: var(--panel); border: 3px outset var(--outset); padding: 20px; z-index: 200; 
             text-align: center; color: var(--accent);
         }
         .modal.active { display: block; }
 
         #cam-coords { 
             position: absolute; bottom: 10px; right: 10px; 
-            font-family: monospace; font-size: 12px; 
+            font-family: monospace; font-size: 14px; 
             background: var(--panel); border: 2px inset var(--outset);
-            padding: 3px 8px; pointer-events: none; color: var(--accent);
+            padding: 5px 10px; pointer-events: none; color: var(--accent);
         }
 
-        input[type="text"] {
-            width: 120px; padding: 5px; border: 2px inset var(--outset); 
+        select, input[type="text"] {
+            padding: 5px; border: 2px inset var(--outset); 
             background: #000; color: var(--accent);
             font-family: monospace; outline: none;
         }
@@ -73,7 +74,7 @@
 <body>
 
 <div id="hud">
-    <div id="minimap-frame"><canvas id="minimap" width="90" height="90"></canvas></div>
+    <div id="minimap-frame"><canvas id="minimap" width="100" height="100"></canvas></div>
     <div id="stats-bar">
         <span>D:<b id="det-count">0</b></span>
         <span>F:<b id="flg-count">0</b></span>
@@ -86,23 +87,32 @@
 </div>
 
 <div id="side-menu">
-    <div style="font-size: 10px; font-weight: bold; border-bottom: 1px solid var(--inset); margin-bottom: 5px;">SESSION STATS</div>
+    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin-bottom: 8px;">DEDICATION STATS</div>
     <div class="menu-row"><span>Revealed:</span><span id="menu-revealed">0</span></div>
     <div class="menu-row"><span>Playtime:</span><span id="menu-time">0s</span></div>
     
-    <div style="font-size: 10px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 15px 0 5px 0;">INTERFACE</div>
-    <button class="sq-btn" style="width:100%; height:25px; margin-bottom: 10px; font-size: 10px;" onclick="toggleTheme()">SWAP THEME</button>
+    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 20px 0 8px 0;">WORLD SETTINGS</div>
     <div class="menu-row">
-        <span>Accent Color:</span>
-        <input type="color" id="colorPicker" value="#ffffff" onchange="updateAccent(this.value)" style="border:none; background:none; height:20px; cursor:pointer;">
+        <span>Difficulty:</span>
+        <select id="diffSelect" onchange="changeDifficulty(this.value)">
+            <option value="0.12">Beginner (12%)</option>
+            <option value="0.15">Intermediate (15%)</option>
+            <option value="0.21">Expert (21%)</option>
+        </select>
     </div>
-    <button class="sq-btn" style="width:100%; height:30px; margin-top: 15px; font-size: 10px;" onclick="confirmReset()">REGENERATE WORLD</button>
+    
+    <button class="sq-btn" style="width:100%; height:40px; margin-bottom: 15px; font-size: 12px;" onclick="toggleTheme()">SWAP THEME</button>
+    <div class="menu-row">
+        <span>Accent:</span>
+        <input type="color" id="colorPicker" value="#ffffff" onchange="updateAccent(this.value)" style="border:none; background:none; height:30px; width:50px;">
+    </div>
+    <button class="sq-btn" style="width:100%; height:45px; margin-top: 20px; font-size: 12px; color: #ff5555;" onclick="confirmReset()">REGENERATE WORLD</button>
 </div>
 
 <div id="warpModal" class="modal">
-    <strong>WARP TO</strong><br><br>
-    <input type="text" id="warpIn" placeholder="0, 0"><br><br>
-    <button class="sq-btn" style="width:100%; height:30px;" onclick="doWarp()">JUMP</button>
+    <strong>WARP TO COORDINATES</strong><br><br>
+    <input type="text" id="warpIn" placeholder="e.g. 500, -500"><br><br>
+    <button class="sq-btn" style="width:100%; height:50px;" onclick="doWarp()">JUMP</button>
 </div>
 
 <div id="cam-coords">0, 0</div>
@@ -114,15 +124,31 @@ const ctx = canvas.getContext('2d');
 const mCanvas = document.getElementById('minimap');
 const mCtx = mCanvas.getContext('2d');
 
-let TILE_SIZE = 32, zoom = 1.0, targetZoom = 1.0;
+let TILE_SIZE = 40, zoom = 1.0, targetZoom = 1.0;
 let camera = { x: 0, y: 0 }; 
 let worldSeed = Math.floor(Math.random() * 999999);
-let startTime = Date.now(), totalPlayedTime = 0;
+let mineDensity = 0.15;
+
+let startTime = Date.now();
+let totalPlayedTime = 0;
+let isTabActive = true;
+
 let revealed = new Set(), flagged = new Set(), detonated = new Set();
 let lastMouse = {x:0, y:0}, isDragging = false, dragMoved = false;
 let keys = {};
 let chordTarget = null;
-let lastRightClickTime = 0;
+let touchTimer = null;
+
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+        isTabActive = false;
+        totalPlayedTime += (Date.now() - startTime);
+        saveGame();
+    } else {
+        isTabActive = true;
+        startTime = Date.now();
+    }
+});
 
 function formatTime(ms) {
     let s = Math.floor(ms / 1000);
@@ -139,11 +165,11 @@ function formatTime(ms) {
 
 function saveGame() {
     const saveData = {
-        worldSeed, camera,
+        worldSeed, camera, mineDensity,
         revealed: Array.from(revealed),
         flagged: Array.from(flagged),
         detonated: Array.from(detonated),
-        totalPlayedTime: totalPlayedTime + (Date.now() - startTime),
+        totalPlayedTime: totalPlayedTime + (isTabActive ? (Date.now() - startTime) : 0),
         accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
     };
     localStorage.setItem('inf_minesweeper_save', JSON.stringify(saveData));
@@ -155,6 +181,8 @@ function loadGame() {
     const data = JSON.parse(raw);
     worldSeed = data.worldSeed;
     camera = data.camera;
+    mineDensity = data.mineDensity || 0.15;
+    document.getElementById('diffSelect').value = mineDensity;
     revealed = new Set(data.revealed);
     flagged = new Set(data.flagged);
     detonated = new Set(data.detonated);
@@ -165,11 +193,23 @@ function loadGame() {
     }
 }
 
+function changeDifficulty(val) {
+    if(confirm("Changing difficulty requires a world reset. Continue?")) {
+        mineDensity = parseFloat(val);
+        revealed.clear(); flagged.clear(); detonated.clear();
+        worldSeed = Math.floor(Math.random() * 999999);
+        camera = {x:0, y:0};
+        saveGame();
+    } else {
+        document.getElementById('diffSelect').value = mineDensity;
+    }
+}
+
 const getSeed = (x, y) => {
     let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453;
     return n - Math.floor(n);
 };
-const hasMine = (x, y) => getSeed(x, y) < 0.15;
+const hasMine = (x, y) => getSeed(x, y) < mineDensity;
 const getCount = (x, y) => {
     let c = 0;
     for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
@@ -191,6 +231,14 @@ function reveal(x, y) {
     saveGame();
 }
 
+function toggleFlag(x, y) {
+    let k = `${x},${y}`;
+    if(!revealed.has(k)) {
+        flagged.has(k) ? flagged.delete(k) : flagged.add(k);
+        saveGame();
+    }
+}
+
 function smartChord(x, y) {
     const k = `${x},${y}`;
     if (!revealed.has(k)) return;
@@ -207,44 +255,16 @@ function smartChord(x, y) {
     }
 }
 
-// Fixed: Toggle Logic closes the other menu
-function toggleMenu() { 
-    document.getElementById('warpModal').classList.remove('active');
-    document.getElementById('side-menu').classList.toggle('active');
-}
-
-function toggleWarp() {
-    document.getElementById('side-menu').classList.remove('active');
-    const w = document.getElementById('warpModal');
-    const active = w.classList.toggle('active');
-    if(active) document.getElementById('warpIn').focus();
-}
-
-function updateAccent(val) { 
-    document.documentElement.style.setProperty('--accent', val); 
-    saveGame();
-}
-
+function toggleMenu() { document.getElementById('warpModal').classList.remove('active'); document.getElementById('side-menu').classList.toggle('active'); }
+function toggleWarp() { document.getElementById('side-menu').classList.remove('active'); const w = document.getElementById('warpModal'); const active = w.classList.toggle('active'); if(active) document.getElementById('warpIn').focus(); }
+function updateAccent(val) { document.documentElement.style.setProperty('--accent', val); saveGame(); }
 function toggleTheme() { document.body.classList.toggle('light-mode'); }
-
-function doWarp() {
-    let p = document.getElementById('warpIn').value.split(',').map(Number);
-    if(!isNaN(p[0])) { camera.x = p[0] * TILE_SIZE; camera.y = (p[1]||0) * TILE_SIZE; }
-    document.getElementById('warpModal').classList.remove('active');
-    saveGame();
-}
-
-function confirmReset() {
-    if(confirm("Are you sure? This will delete all progress and generate a new seed.")) {
-        localStorage.removeItem('inf_minesweeper_save');
-        location.reload();
-    }
-}
+function doWarp() { let p = document.getElementById('warpIn').value.split(',').map(Number); if(!isNaN(p[0])) { camera.x = p[0] * TILE_SIZE; camera.y = (p[1]||0) * TILE_SIZE; } document.getElementById('warpModal').classList.remove('active'); saveGame(); }
+function confirmReset() { if(confirm("Regenerate World? All progress will be lost.")) { localStorage.removeItem('inf_minesweeper_save'); location.reload(); } }
 
 function render() {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const moveSpeed = 12 / zoom;
-    
     if(keys['KeyW'] || keys['ArrowUp']) camera.y -= moveSpeed;
     if(keys['KeyS'] || keys['ArrowDown']) camera.y += moveSpeed;
     if(keys['KeyA'] || keys['ArrowLeft']) camera.x -= moveSpeed;
@@ -252,8 +272,11 @@ function render() {
 
     zoom += (targetZoom - zoom) * 0.15;
     const curSize = Math.round(TILE_SIZE * zoom);
-    const hw = canvas.width/2, hh = canvas.height/2;
+    
+    // Level of Detail (LOD) check
+    const isUltraZoomed = curSize < 8;
 
+    const hw = canvas.width/2, hh = canvas.height/2;
     const startX = Math.floor((camera.x - hw/zoom) / TILE_SIZE);
     const startY = Math.floor((camera.y - hh/zoom) / TILE_SIZE);
     const endX = startX + Math.ceil(canvas.width/curSize) + 2;
@@ -270,35 +293,40 @@ function render() {
             let isDepressed = chordTarget && Math.abs(x - chordTarget.x) <= 1 && Math.abs(y - chordTarget.y) <= 1;
 
             if(!revealed.has(k)) {
-                if(isDepressed && !flagged.has(k)) {
-                    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
-                    ctx.strokeRect(sx, sy, curSize, curSize);
-                } else {
-                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-highlight');
-                    ctx.fillRect(sx, sy, curSize, 1); ctx.fillRect(sx, sy, 1, curSize);
-                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-shadow');
-                    ctx.fillRect(sx+curSize-1, sy, 1, curSize); ctx.fillRect(sx, sy+curSize-1, curSize, 1);
-                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--panel');
-                    ctx.fillRect(sx+1, sy+1, curSize-2, curSize-2);
-                    if(flagged.has(k)) {
-                        ctx.font = `${14*zoom}px Arial`; ctx.textAlign="center"; 
-                        ctx.fillText("🚩", sx + curSize/2, sy + curSize/1.3);
+                // Draw Unrevealed
+                ctx.fillStyle = flagged.has(k) ? "#ff3333" : "var(--panel)";
+                ctx.fillRect(sx, sy, curSize, curSize);
+                
+                if (!isUltraZoomed) {
+                    if(isDepressed && !flagged.has(k)) {
+                        ctx.strokeStyle = "var(--inset)";
+                        ctx.strokeRect(sx, sy, curSize, curSize);
+                    } else {
+                        ctx.fillStyle = "var(--tile-highlight)";
+                        ctx.fillRect(sx, sy, curSize, 1); ctx.fillRect(sx, sy, 1, curSize);
+                        ctx.fillStyle = "var(--tile-shadow)";
+                        ctx.fillRect(sx+curSize-1, sy, 1, curSize); ctx.fillRect(sx, sy+curSize-1, curSize, 1);
                     }
                 }
             } else {
-                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.5)" : "transparent";
+                // Draw Revealed
+                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.6)" : "var(--bg)";
                 ctx.fillRect(sx, sy, curSize, curSize);
-                ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
-                ctx.strokeRect(sx, sy, curSize, curSize);
-                if(hasMine(x,y)) {
-                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent');
-                    ctx.beginPath(); ctx.arc(sx+curSize/2, sy+curSize/2, curSize/4, 0, 7); ctx.fill();
-                } else {
-                    let n = getCount(x,y);
-                    if(n>0) {
-                        ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
-                        ctx.font = `bold ${16*zoom}px Arial`; ctx.textAlign="center";
-                        ctx.fillText(n, sx + curSize/2, sy + curSize/1.3);
+                
+                if(!isUltraZoomed) {
+                    ctx.strokeStyle = "var(--inset)";
+                    ctx.strokeRect(sx, sy, curSize, curSize);
+                    
+                    if(hasMine(x,y)) {
+                        ctx.fillStyle = "var(--accent)";
+                        ctx.beginPath(); ctx.arc(sx+curSize/2, sy+curSize/2, curSize/4, 0, 7); ctx.fill();
+                    } else {
+                        let n = getCount(x,y);
+                        if(n>0 && curSize > 15) {
+                            ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
+                            ctx.font = `bold ${20*zoom}px Arial`; ctx.textAlign="center";
+                            ctx.fillText(n, sx + curSize/2, sy + curSize/1.3);
+                        }
                     }
                 }
             }
@@ -309,37 +337,69 @@ function render() {
     document.getElementById('flg-count').innerText = flagged.size;
     document.getElementById('menu-revealed').innerText = revealed.size;
     
-    let curTimeMs = (totalPlayedTime + (Date.now() - startTime));
-    document.getElementById('menu-time').innerText = formatTime(curTimeMs);
+    let currentLap = isTabActive ? (Date.now() - startTime) : 0;
+    document.getElementById('menu-time').innerText = formatTime(totalPlayedTime + currentLap);
     
     const camX = Math.round(camera.x/TILE_SIZE), camY = Math.round(camera.y/TILE_SIZE);
     document.getElementById('cam-coords').innerText = `${camX}, ${camY}`;
     
-    mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,90,90);
+    mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,100,100);
     revealed.forEach(rk => {
         let [kx, ky] = rk.split(',').map(Number);
         mCtx.fillStyle = detonated.has(rk) ? "red" : "#fff";
-        mCtx.fillRect(45 + (kx-camX), 45 + (ky-camY), 1, 1);
+        mCtx.fillRect(50 + (kx-camX), 50 + (ky-camY), 2, 2);
     });
-    mCtx.strokeStyle = "var(--accent)"; mCtx.strokeRect(44, 44, 2, 2);
+    mCtx.strokeStyle = "var(--accent)"; mCtx.strokeRect(48, 48, 4, 4);
     requestAnimationFrame(render);
 }
 
-function isOverUI(e) { return e.target.closest('#hud, #top-right, #side-menu, .modal'); }
+function isOverUI(e) { 
+    const el = e.target || (e.touches ? e.touches[0].target : e.target);
+    return el.closest('#hud, #top-right, #side-menu, .modal'); 
+}
 
-window.addEventListener('keydown', e => {
-    if(e.code === 'Enter' && document.getElementById('warpModal').classList.contains('active')) doWarp();
-    keys[e.code] = true;
-    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","KeyW","KeyA","KeyS","KeyD"].includes(e.code)) e.preventDefault();
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-
-window.addEventListener('wheel', e => {
+canvas.addEventListener('wheel', e => {
     if(isOverUI(e)) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.88 : 1.12;
-    targetZoom = Math.max(0.2, Math.min(targetZoom * delta, 4.0));
+    // Massive zoom-out range: 0.01 to 4.0
+    targetZoom = Math.max(0.01, Math.min(targetZoom * delta, 4.0));
 }, {passive:false});
+
+canvas.addEventListener('touchstart', e => {
+    if(isOverUI(e)) return;
+    const t = e.touches[0];
+    lastMouse = {x: t.clientX, y: t.clientY};
+    isDragging = true; dragMoved = false;
+    const wx = (t.clientX - canvas.width/2)/zoom + camera.x;
+    const wy = (t.clientY - canvas.height/2)/zoom + camera.y;
+    const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+    if(revealed.has(`${tx},${ty}`)) chordTarget = {x: tx, y: ty};
+    touchTimer = setTimeout(() => {
+        if(!dragMoved) { toggleFlag(tx, ty); isDragging = false; chordTarget = null; if (window.navigator.vibrate) window.navigator.vibrate(50); }
+    }, 500);
+}, {passive:true});
+
+canvas.addEventListener('touchmove', e => {
+    if(!isDragging) return;
+    const t = e.touches[0];
+    let dx = t.clientX - lastMouse.x;
+    let dy = t.clientY - lastMouse.y;
+    if(Math.abs(dx) > 5 || Math.abs(dy) > 5) { dragMoved = true; clearTimeout(touchTimer); chordTarget = null; camera.x -= dx / zoom; camera.y -= dy / zoom; }
+    lastMouse = {x: t.clientX, y: t.clientY};
+}, {passive:true});
+
+canvas.addEventListener('touchend', e => {
+    clearTimeout(touchTimer);
+    if(isDragging && !dragMoved) {
+        const t = e.changedTouches[0];
+        const wx = (t.clientX - canvas.width/2)/zoom + camera.x;
+        const wy = (t.clientY - canvas.height/2)/zoom + camera.y;
+        const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+        if(chordTarget) smartChord(chordTarget.x, chordTarget.y); else reveal(tx, ty);
+    }
+    isDragging = false; dragMoved = false; chordTarget = null;
+}, {passive:true});
 
 window.addEventListener('mousedown', e => {
     if(isOverUI(e)) return;
@@ -348,49 +408,14 @@ window.addEventListener('mousedown', e => {
     const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
     const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
     const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
-    if(e.button === 2) {
-        lastRightClickTime = Date.now();
-        let k = `${tx},${ty}`;
-        if(!revealed.has(k)) flagged.has(k) ? flagged.delete(k) : flagged.add(k);
-        saveGame();
-    } else if(e.button === 0 && revealed.has(`${tx},${ty}`)) {
-        chordTarget = {x: tx, y: ty};
-    }
+    if(e.button === 2) { toggleFlag(tx, ty); }
+    else if(e.button === 0 && revealed.has(`${tx},${ty}`)) { chordTarget = {x: tx, y: ty}; }
 });
-
-window.addEventListener('mousemove', e => {
-    if(isDragging) {
-        let dx = e.clientX - lastMouse.x;
-        let dy = e.clientY - lastMouse.y;
-        if(Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-            dragMoved = true;
-            chordTarget = null;
-            camera.x -= dx / zoom;
-            camera.y -= dy / zoom;
-        }
-    }
-    lastMouse = {x: e.clientX, y: e.clientY};
-});
-
-window.addEventListener('mouseup', e => {
-    if(isDragging && !dragMoved && !isOverUI(e)) {
-        if(Date.now() - lastRightClickTime > 150) { 
-            const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
-            const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
-            const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
-            if(e.button === 0) {
-                if(chordTarget) smartChord(chordTarget.x, chordTarget.y);
-                else reveal(tx, ty);
-            }
-        }
-    }
-    if(isDragging && dragMoved) saveGame();
-    isDragging = false; chordTarget = null;
-});
-
-window.addEventListener('blur', () => { isDragging = false; chordTarget = null; });
+window.addEventListener('mousemove', e => { if(isDragging) { let dx = e.clientX - lastMouse.x; let dy = e.clientY - lastMouse.y; if(Math.abs(dx) > 3 || Math.abs(dy) > 3) { dragMoved = true; camera.x -= dx / zoom; camera.y -= dy / zoom; } } lastMouse = {x: e.clientX, y: e.clientY}; });
+window.addEventListener('mouseup', e => { if(isDragging && !dragMoved && !isOverUI(e) && e.button === 0) { const wx = (e.clientX - canvas.width/2)/zoom + camera.x; const wy = (e.clientY - canvas.height/2)/zoom + camera.y; const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE); if(chordTarget) smartChord(chordTarget.x, chordTarget.y); else reveal(tx, ty); } isDragging = false; chordTarget = null; });
+window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code === 'Enter' && document.getElementById('warpModal').classList.contains('active')) doWarp(); });
+window.addEventListener('keyup', e => keys[e.code] = false);
 window.oncontextmenu = e => e.preventDefault();
-
 loadGame();
 render();
 </script>
