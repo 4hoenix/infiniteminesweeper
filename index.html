@@ -64,7 +64,7 @@
             padding: 5px 10px; pointer-events: none; color: var(--accent);
         }
 
-        select, input[type="text"] {
+        input[type="text"] {
             padding: 5px; border: 2px inset var(--outset); 
             background: #000; color: var(--accent);
             font-family: monospace; outline: none;
@@ -91,16 +91,7 @@
     <div class="menu-row"><span>Revealed:</span><span id="menu-revealed">0</span></div>
     <div class="menu-row"><span>Playtime:</span><span id="menu-time">0s</span></div>
     
-    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 20px 0 8px 0;">WORLD SETTINGS</div>
-    <div class="menu-row">
-        <span>Difficulty:</span>
-        <select id="diffSelect" onchange="changeDifficulty(this.value)">
-            <option value="0.12">Beginner (12%)</option>
-            <option value="0.15">Intermediate (15%)</option>
-            <option value="0.21">Expert (21%)</option>
-        </select>
-    </div>
-    
+    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 20px 0 8px 0;">CUSTOMIZATION</div>
     <button class="sq-btn" style="width:100%; height:40px; margin-bottom: 15px; font-size: 12px;" onclick="toggleTheme()">SWAP THEME</button>
     <div class="menu-row">
         <span>Accent:</span>
@@ -127,9 +118,9 @@ const mCtx = mCanvas.getContext('2d');
 let TILE_SIZE = 40, zoom = 1.0, targetZoom = 1.0;
 let camera = { x: 0, y: 0 }; 
 let worldSeed = Math.floor(Math.random() * 999999);
-let mineDensity = 0.15;
+const MINE_DENSITY = 0.15; // Reverted to static density
 
-// Active Timer Logic
+// Active Timer Variables
 let startTime = Date.now();
 let totalPlayedTime = 0;
 let isTabActive = true;
@@ -138,9 +129,8 @@ let revealed = new Set(), flagged = new Set(), detonated = new Set();
 let lastMouse = {x:0, y:0}, isDragging = false, dragMoved = false;
 let keys = {};
 let chordTarget = null;
-let touchTimer = null;
 
-// Tab visibility listener
+// Tab visibility listener: Pauses time when tab is hidden
 document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
         isTabActive = false;
@@ -166,12 +156,13 @@ function formatTime(ms) {
 }
 
 function saveGame() {
+    const currentLap = isTabActive ? (Date.now() - startTime) : 0;
     const saveData = {
-        worldSeed, camera, mineDensity,
+        worldSeed, camera,
         revealed: Array.from(revealed),
         flagged: Array.from(flagged),
         detonated: Array.from(detonated),
-        totalPlayedTime: totalPlayedTime + (isTabActive ? (Date.now() - startTime) : 0),
+        totalPlayedTime: totalPlayedTime + currentLap,
         accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
     };
     localStorage.setItem('inf_minesweeper_save', JSON.stringify(saveData));
@@ -183,8 +174,6 @@ function loadGame() {
     const data = JSON.parse(raw);
     worldSeed = data.worldSeed;
     camera = data.camera;
-    mineDensity = data.mineDensity || 0.15;
-    document.getElementById('diffSelect').value = mineDensity;
     revealed = new Set(data.revealed);
     flagged = new Set(data.flagged);
     detonated = new Set(data.detonated);
@@ -195,24 +184,11 @@ function loadGame() {
     }
 }
 
-// Safety Gate for Difficulty
-function changeDifficulty(val) {
-    if(confirm("Changing difficulty requires a world reset. Continue?")) {
-        mineDensity = parseFloat(val);
-        revealed.clear(); flagged.clear(); detonated.clear();
-        worldSeed = Math.floor(Math.random() * 999999);
-        camera = {x:0, y:0};
-        saveGame();
-    } else {
-        document.getElementById('diffSelect').value = mineDensity;
-    }
-}
-
 const getSeed = (x, y) => {
     let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453;
     return n - Math.floor(n);
 };
-const hasMine = (x, y) => getSeed(x, y) < mineDensity;
+const hasMine = (x, y) => getSeed(x, y) < MINE_DENSITY;
 const getCount = (x, y) => {
     let c = 0;
     for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
@@ -245,17 +221,14 @@ function toggleFlag(x, y) {
 function smartChord(x, y) {
     const k = `${x},${y}`;
     if (!revealed.has(k)) return;
-    let mines = getCount(x, y), currentFlags = 0, neighbors = [];
+    let mines = getCount(x, y), flags = 0, neighbors = [];
     for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
         if(i===0 && j===0) continue;
         let nk = `${x+i},${y+j}`;
-        if(flagged.has(nk) || detonated.has(nk)) currentFlags++;
+        if(flagged.has(nk) || detonated.has(nk)) flags++;
         if(!revealed.has(nk) && !flagged.has(nk)) neighbors.push({x: x+i, y: y+j});
     }
-    if(currentFlags === mines) {
-        neighbors.forEach(n => reveal(n.x, n.y));
-        saveGame();
-    }
+    if(flags === mines) { neighbors.forEach(n => reveal(n.x, n.y)); saveGame(); }
 }
 
 function toggleMenu() { document.getElementById('side-menu').classList.toggle('active'); }
@@ -334,11 +307,10 @@ function render() {
     
     let currentLap = isTabActive ? (Date.now() - startTime) : 0;
     document.getElementById('menu-time').innerText = formatTime(totalPlayedTime + currentLap);
-    
-    const camX = Math.round(camera.x/TILE_SIZE), camY = Math.round(camera.y/TILE_SIZE);
-    document.getElementById('cam-coords').innerText = `${camX}, ${camY}`;
+    document.getElementById('cam-coords').innerText = `${Math.round(camera.x/TILE_SIZE)}, ${Math.round(camera.y/TILE_SIZE)}`;
     
     mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,100,100);
+    const camX = camera.x/TILE_SIZE, camY = camera.y/TILE_SIZE;
     revealed.forEach(rk => {
         let [kx, ky] = rk.split(',').map(Number);
         mCtx.fillStyle = detonated.has(rk) ? "red" : "#fff";
@@ -347,7 +319,6 @@ function render() {
     requestAnimationFrame(render);
 }
 
-// Event Listeners for Chords and Dragging
 canvas.addEventListener('wheel', e => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -377,7 +348,7 @@ window.addEventListener('mouseup', e => {
         const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
         const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
         const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
-        if(chordTarget) smartChord(chordTarget.x, chordTarget.y); else reveal(tx, ty);
+        if(chordTarget) smartChord(tx, ty); else reveal(tx, ty);
     } else if (!isDragging && !dragMoved && e.button === 2) {
         const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
         const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
