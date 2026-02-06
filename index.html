@@ -1,109 +1,229 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Infinite Minesweeper - Fixed</title>
+    <title>Infinite Minesweeper</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        :root { --bg: #1a1a1a; --panel: #2d2d2d; --text: #eee; --accent: #ffffff; }
-        body { margin: 0; overflow: hidden; background: var(--bg); font-family: sans-serif; touch-action: none; color: var(--text); }
-        canvas { display: block; image-rendering: crisp-edges; image-rendering: pixelated; }
-        #hud { position: absolute; top: 10px; left: 10px; background: var(--panel); padding: 10px; border: 3px outset #444; pointer-events: none; }
-        #coords { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.5); padding: 5px; font-family: monospace; }
+        :root {
+            --bg: #1a1a1a; --panel: #2d2d2d; --text: #eee; --inset: #000; --outset: #444;
+            --accent: #ffffff;
+            --tile-shadow: #000000; --tile-highlight: #444444;
+        }
+        .light-mode {
+            --bg: #bdbdbd; --panel: #bdbdbd; --text: #000; --inset: #7b7b7b; --outset: #fff; 
+            --tile-shadow: #7b7b7b; --tile-highlight: #ffffff;
+        }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; touch-action: none; color: var(--accent); user-select: none; cursor: default; }
+        canvas { display: block; image-rendering: pixelated; }
+
+        #hud { position: absolute; top: 10px; left: 10px; z-index: 100; background: var(--panel); border: 3px outset var(--outset); width: 110px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+        #minimap-frame { width: 100px; height: 100px; border: 2px inset var(--outset); background: #000; }
+        #stats-bar { width: 100%; background: #000; color: var(--accent); font-family: 'Courier New', monospace; font-size: 14px; padding: 4px 5px; border: 2px inset var(--inset); box-sizing: border-box; display: flex; justify-content: space-between; }
+        #top-right { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }
+        .sq-btn { width: 50px; height: 50px; background: var(--panel); border: 3px outset var(--outset); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--accent); font-size: 18px; }
+        #side-menu { display: none; position: fixed; top: 70px; right: 10px; width: 240px; background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 101; color: var(--accent); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        #side-menu.active { display: block; }
+        .menu-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin: 12px 0; font-family: monospace; }
+        .modal { display: none; position: fixed; top: 70px; right: 10px; left: 10px; background: var(--panel); border: 3px outset var(--outset); padding: 20px; z-index: 200; text-align: center; color: var(--accent); }
+        .modal.active { display: block; }
+        #cam-coords { position: absolute; bottom: 10px; right: 10px; font-family: monospace; font-size: 14px; background: var(--panel); border: 2px inset var(--outset); padding: 5px 10px; pointer-events: none; color: var(--accent); }
+        select, input[type="text"] { padding: 5px; border: 2px inset var(--outset); background: #000; color: var(--accent); font-family: monospace; outline: none; }
     </style>
 </head>
 <body>
-    <div id="hud">
-        Revealed: <span id="count">0</span><br>
-        Mines: <span id="mines">0</span>
+
+<div id="hud">
+    <div id="minimap-frame"><canvas id="minimap" width="100" height="100"></canvas></div>
+    <div id="stats-bar"><span>D:<b id="det-count">0</b></span><span>F:<b id="flg-count">0</b></span></div>
+</div>
+
+<div id="top-right">
+    <div class="sq-btn" onclick="toggleWarp()">GO</div>
+    <div class="sq-btn" onclick="toggleMenu()">☰</div>
+</div>
+
+<div id="side-menu">
+    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin-bottom: 8px;">DEDICATION STATS</div>
+    <div class="menu-row"><span>Revealed:</span><span id="menu-revealed">0</span></div>
+    <div class="menu-row"><span>Playtime:</span><span id="menu-time">0s</span></div>
+    
+    <div style="font-size: 12px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 20px 0 8px 0;">WORLD SETTINGS</div>
+    <div class="menu-row">
+        <span>Difficulty:</span>
+        <select id="diffSelect" onchange="changeDifficulty(this.value)">
+            <option value="0.12">Beginner (12%)</option>
+            <option value="0.15">Intermediate (15%)</option>
+            <option value="0.21">Expert (21%)</option>
+        </select>
     </div>
-    <div id="coords">0, 0</div>
-    <canvas id="gameCanvas"></canvas>
+    
+    <button class="sq-btn" style="width:100%; height:40px; margin-bottom: 15px; font-size: 12px;" onclick="toggleTheme()">SWAP THEME</button>
+    <div class="menu-row">
+        <span>Accent:</span>
+        <input type="color" id="colorPicker" value="#ffffff" onchange="updateAccent(this.value)" style="border:none; background:none; height:30px; width:50px;">
+    </div>
+    <button class="sq-btn" style="width:100%; height:45px; margin-top: 20px; font-size: 12px; color: #ff5555;" onclick="confirmReset()">REGENERATE WORLD</button>
+</div>
+
+<div id="warpModal" class="modal">
+    <strong>WARP TO COORDINATES</strong><br><br>
+    <input type="text" id="warpIn" placeholder="e.g. 500, -500"><br><br>
+    <button class="sq-btn" style="width:100%; height:50px;" onclick="doWarp()">JUMP</button>
+</div>
+
+<div id="cam-coords">0, 0</div>
+<canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false }); // Performance boost: no transparency
+const ctx = canvas.getContext('2d', { alpha: false });
+const mCanvas = document.getElementById('minimap');
+const mCtx = mCanvas.getContext('2d');
+
 let TILE_SIZE = 40, zoom = 1.0, targetZoom = 1.0;
-let camera = { x: 0, y: 0 };
+let camera = { x: 0, y: 0 }; 
 let worldSeed = Math.floor(Math.random() * 999999);
+let mineDensity = 0.15;
+
+let startTime = Date.now();
+let totalPlayedTime = 0;
+let isTabActive = true;
+
 let revealed = new Set(), flagged = new Set(), detonated = new Set();
 let lastMouse = {x:0, y:0}, isDragging = false, dragMoved = false;
+let keys = {};
+let chordTarget = null;
 
-function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+document.addEventListener("visibilitychange", () => {
+    if (document.hidden) { isTabActive = false; totalPlayedTime += (Date.now() - startTime); saveGame(); }
+    else { isTabActive = true; startTime = Date.now(); }
+});
+
+function formatTime(ms) {
+    let s = Math.floor(ms / 1000);
+    let d = Math.floor(s / 86400); s %= 86400;
+    let h = Math.floor(s / 3600); s %= 3600;
+    let m = Math.floor(s / 60); s %= 60;
+    let res = (d > 0 ? d + "d " : "") + (h > 0 || d > 0 ? h.toString().padStart(2, '0') + "h " : "") + (m > 0 || h > 0 || d > 0 ? m.toString().padStart(2, '0') + "m " : "") + s.toString().padStart(2, '0') + "s";
+    return res;
 }
-window.addEventListener('resize', resize);
-resize();
 
-const getSeed = (x, y) => {
-    let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453;
-    return n - Math.floor(n);
-};
-const hasMine = (x, y) => getSeed(x, y) < 0.15;
+function saveGame() {
+    const saveData = { worldSeed, camera, mineDensity, revealed: Array.from(revealed), flagged: Array.from(flagged), detonated: Array.from(detonated), totalPlayedTime: totalPlayedTime + (isTabActive ? (Date.now() - startTime) : 0), accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+    localStorage.setItem('inf_minesweeper_save', JSON.stringify(saveData));
+}
+
+function loadGame() {
+    const raw = localStorage.getItem('inf_minesweeper_save');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    worldSeed = data.worldSeed; camera = data.camera; mineDensity = data.mineDensity || 0.15;
+    document.getElementById('diffSelect').value = mineDensity;
+    revealed = new Set(data.revealed); flagged = new Set(data.flagged); detonated = new Set(data.detonated);
+    totalPlayedTime = data.totalPlayedTime || 0;
+    if(data.accent) { updateAccent(data.accent); document.getElementById('colorPicker').value = data.accent; }
+}
+
+function changeDifficulty(val) {
+    if(confirm("Changing difficulty requires a world reset. Continue?")) {
+        mineDensity = parseFloat(val);
+        revealed.clear(); flagged.clear(); detonated.clear();
+        worldSeed = Math.floor(Math.random() * 999999); camera = {x:0, y:0}; saveGame();
+    } else { document.getElementById('diffSelect').value = mineDensity; }
+}
+
+const getSeed = (x, y) => { let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453; return n - Math.floor(n); };
+const hasMine = (x, y) => getSeed(x, y) < mineDensity;
 const getCount = (x, y) => {
     let c = 0;
-    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
-        if(i===0 && j===0) continue;
-        if(hasMine(x+i, y+j)) c++;
-    }
+    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) { if(i===0 && j===0) continue; if(hasMine(x+i, y+j)) c++; }
     return c;
 };
 
-function render() {
-    // 1. Clear with a solid color to prevent trailing
-    ctx.fillStyle = "#1a1a1a";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+function reveal(x, y) {
+    if(revealed.size === 0) { while(hasMine(x,y) || getCount(x,y) > 0) worldSeed++; }
+    const k = `${x},${y}`;
+    if(revealed.has(k) || flagged.has(k)) return;
+    revealed.add(k);
+    if(hasMine(x,y)) { detonated.add(k); }
+    else if(getCount(x,y) === 0) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) reveal(x+i, y+j); }
+    saveGame();
+}
 
-    zoom += (targetZoom - zoom) * 0.1;
+function toggleFlag(x, y) { let k = `${x},${y}`; if(!revealed.has(k)) { flagged.has(k) ? flagged.delete(k) : flagged.add(k); saveGame(); } }
+
+function smartChord(x, y) {
+    const k = `${x},${y}`; if (!revealed.has(k)) return;
+    let mines = getCount(x, y), flags = 0, neighbors = [];
+    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
+        if(i===0 && j===0) continue;
+        let nk = `${x+i},${y+j}`;
+        if(flagged.has(nk) || detonated.has(nk)) flags++;
+        if(!revealed.has(nk) && !flagged.has(nk)) neighbors.push({x: x+i, y: y+j});
+    }
+    if(flags === mines) { neighbors.forEach(n => reveal(n.x, n.y)); saveGame(); }
+}
+
+function toggleMenu() { document.getElementById('side-menu').classList.toggle('active'); }
+function toggleWarp() { document.getElementById('warpModal').classList.toggle('active'); }
+function updateAccent(val) { document.documentElement.style.setProperty('--accent', val); saveGame(); }
+function toggleTheme() { document.body.classList.toggle('light-mode'); }
+function doWarp() { let p = document.getElementById('warpIn').value.split(',').map(Number); if(!isNaN(p[0])) { camera.x = p[0] * TILE_SIZE; camera.y = (p[1]||0) * TILE_SIZE; } document.getElementById('warpModal').classList.remove('active'); saveGame(); }
+function confirmReset() { if(confirm("Regenerate World? All progress will be lost.")) { localStorage.removeItem('inf_minesweeper_save'); location.reload(); } }
+
+function render() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    const moveSpeed = 12 / zoom;
+    if(keys['KeyW'] || keys['ArrowUp']) camera.y -= moveSpeed;
+    if(keys['KeyS'] || keys['ArrowDown']) camera.y += moveSpeed;
+    if(keys['KeyA'] || keys['ArrowLeft']) camera.x -= moveSpeed;
+    if(keys['KeyD'] || keys['ArrowRight']) camera.x += moveSpeed;
+
+    zoom += (targetZoom - zoom) * 0.15;
     
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg');
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
     ctx.save();
-    // 2. Center the camera and apply zoom at the context level
     ctx.translate(canvas.width / 2, canvas.height / 2);
     ctx.scale(zoom, zoom);
     ctx.translate(-camera.x, -camera.y);
 
-    const viewW = canvas.width / zoom;
-    const viewH = canvas.height / zoom;
+    const viewW = canvas.width / zoom, viewH = canvas.height / zoom;
     const startX = Math.floor((camera.x - viewW/2) / TILE_SIZE);
     const startY = Math.floor((camera.y - viewH/2) / TILE_SIZE);
     const endX = startX + Math.ceil(viewW / TILE_SIZE) + 1;
     const endY = startY + Math.ceil(viewH / TILE_SIZE) + 1;
 
-    for (let x = startX; x <= endX; x++) {
-        for (let y = startY; y <= endY; y++) {
+    for(let x=startX; x<=endX; x++) {
+        for(let y=startY; y<=endY; y++) {
             const k = `${x},${y}`;
-            const px = x * TILE_SIZE;
-            const py = y * TILE_SIZE;
-
-            // DRAWING LOGIC
-            if (!revealed.has(k)) {
-                ctx.fillStyle = flagged.has(k) ? "#ff4444" : "#333";
-                // Using a 1px overlap (TILE_SIZE + 1) to eliminate sub-pixel gaps (stripes)
-                ctx.fillRect(px, py, TILE_SIZE + 0.5, TILE_SIZE + 0.5);
+            const px = x * TILE_SIZE, py = y * TILE_SIZE;
+            
+            if(!revealed.has(k)) {
+                ctx.fillStyle = flagged.has(k) ? "#ff3333" : "var(--panel)";
+                ctx.fillRect(px, py, TILE_SIZE + 0.5, TILE_SIZE + 0.5); // 0.5px overlap kills stripes
                 
-                // Borders (only if zoomed in enough to see them)
                 if (zoom > 0.5) {
-                    ctx.strokeStyle = "#444";
+                    ctx.strokeStyle = "var(--tile-shadow)";
                     ctx.lineWidth = 1/zoom;
                     ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
                 }
             } else {
-                ctx.fillStyle = detonated.has(k) ? "#600" : "#111";
+                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.6)" : "var(--bg)";
                 ctx.fillRect(px, py, TILE_SIZE + 0.5, TILE_SIZE + 0.5);
                 
-                if (zoom > 0.3) {
-                    let c = getCount(x, y);
-                    if (c > 0 && !hasMine(x, y)) {
-                        ctx.fillStyle = ["", "#3498db", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#1abc9c", "#34495e", "#7f8c8d"][c];
-                        ctx.font = `bold ${TILE_SIZE/2}px Arial`;
-                        ctx.textAlign = "center";
-                        ctx.textBaseline = "middle";
-                        ctx.fillText(c, px + TILE_SIZE/2, py + TILE_SIZE/2);
-                    } else if (hasMine(x, y)) {
-                        ctx.fillStyle = "white";
-                        ctx.beginPath();
-                        ctx.arc(px + TILE_SIZE/2, py + TILE_SIZE/2, TILE_SIZE/4, 0, Math.PI*2);
-                        ctx.fill();
+                if (zoom > 0.4) {
+                    if(hasMine(x,y)) {
+                        ctx.fillStyle = "var(--accent)";
+                        ctx.beginPath(); ctx.arc(px+TILE_SIZE/2, py+TILE_SIZE/2, TILE_SIZE/4, 0, 7); ctx.fill();
+                    } else {
+                        let n = getCount(x,y);
+                        if(n > 0 && zoom > 0.5) {
+                            ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
+                            ctx.font = `bold ${TILE_SIZE/2}px Arial`; ctx.textAlign="center"; ctx.textBaseline="middle";
+                            ctx.fillText(n, px+TILE_SIZE/2, py+TILE_SIZE/2);
+                        }
                     }
                 }
             }
@@ -111,63 +231,39 @@ function render() {
     }
     ctx.restore();
 
-    document.getElementById('count').innerText = revealed.size;
-    document.getElementById('mines').innerText = detonated.size;
-    document.getElementById('coords').innerText = `${Math.floor(camera.x/TILE_SIZE)}, ${Math.floor(camera.y/TILE_SIZE)}`;
+    document.getElementById('det-count').innerText = detonated.size;
+    document.getElementById('flg-count').innerText = flagged.size;
+    document.getElementById('menu-revealed').innerText = revealed.size;
+    let currentLap = isTabActive ? (Date.now() - startTime) : 0;
+    document.getElementById('menu-time').innerText = formatTime(totalPlayedTime + currentLap);
+    document.getElementById('cam-coords').innerText = `${Math.floor(camera.x/TILE_SIZE)}, ${Math.floor(camera.y/TILE_SIZE)}`;
+    
+    mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,100,100);
+    const camX = camera.x/TILE_SIZE, camY = camera.y/TILE_SIZE;
+    revealed.forEach(rk => {
+        let [kx, ky] = rk.split(',').map(Number);
+        mCtx.fillStyle = detonated.has(rk) ? "red" : "#fff";
+        mCtx.fillRect(50 + (kx-camX), 50 + (ky-camY), 2, 2);
+    });
     requestAnimationFrame(render);
 }
 
-// Controls
-canvas.addEventListener('wheel', e => {
-    e.preventDefault();
-    targetZoom = Math.max(0.1, Math.min(targetZoom * (e.deltaY > 0 ? 0.8 : 1.2), 10));
-}, {passive: false});
-
-canvas.onmousedown = e => {
-    isDragging = true;
-    lastMouse = {x: e.clientX, y: e.clientY};
-    dragMoved = false;
-};
-
-window.onmousemove = e => {
-    if (!isDragging) return;
-    let dx = e.clientX - lastMouse.x;
-    let dy = e.clientY - lastMouse.y;
-    if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
-        camera.x -= dx / zoom;
-        camera.y -= dy / zoom;
-        dragMoved = true;
-    }
-    lastMouse = {x: e.clientX, y: e.clientY};
-};
-
+canvas.addEventListener('wheel', e => { e.preventDefault(); targetZoom = Math.max(0.01, Math.min(targetZoom * (e.deltaY > 0 ? 0.85 : 1.15), 5.0)); }, {passive:false});
+canvas.onmousedown = e => { if(e.target.id !== 'gameCanvas') return; isDragging = true; lastMouse = {x: e.clientX, y: e.clientY}; dragMoved = false; };
+window.onmousemove = e => { if(isDragging) { let dx = e.clientX - lastMouse.x, dy = e.clientY - lastMouse.y; if(Math.abs(dx)>2 || Math.abs(dy)>2) { camera.x -= dx/zoom; camera.y -= dy/zoom; dragMoved = true; } lastMouse = {x: e.clientX, y: e.clientY}; } };
 window.onmouseup = e => {
-    if (!isDragging) return;
-    if (!dragMoved) {
-        const rect = canvas.getBoundingClientRect();
-        const mx = (e.clientX - rect.left - canvas.width/2) / zoom + camera.x;
-        const my = (e.clientY - rect.top - canvas.height/2) / zoom + camera.y;
-        const tx = Math.floor(mx / TILE_SIZE);
-        const ty = Math.floor(my / TILE_SIZE);
-        
-        if (e.button === 0) { // Left click
-            const k = `${tx},${ty}`;
-            if (!flagged.has(k)) {
-                revealed.add(k);
-                if (hasMine(tx, ty)) detonated.add(k);
-            }
-        } else if (e.button === 2) { // Right click
-            const k = `${tx},${ty}`;
-            if (!revealed.has(k)) {
-                flagged.has(k) ? flagged.delete(k) : flagged.add(k);
-            }
-        }
+    if(isDragging && !dragMoved) {
+        const mx = (e.clientX - canvas.width/2)/zoom + camera.x, my = (e.clientY - canvas.height/2)/zoom + camera.y;
+        const tx = Math.floor(mx/TILE_SIZE), ty = Math.floor(my/TILE_SIZE);
+        if(e.button === 0) { if(revealed.has(`${tx},${ty}`)) smartChord(tx, ty); else reveal(tx, ty); }
+        else if(e.button === 2) toggleFlag(tx, ty);
     }
     isDragging = false;
 };
-
-canvas.oncontextmenu = e => e.preventDefault();
-render();
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+window.oncontextmenu = e => e.preventDefault();
+loadGame(); render();
 </script>
 </body>
 </html>
