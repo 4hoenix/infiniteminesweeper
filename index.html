@@ -207,11 +207,14 @@ function smartChord(x, y) {
     }
 }
 
+// Fixed: Toggle Logic closes the other menu
 function toggleMenu() { 
+    document.getElementById('warpModal').classList.remove('active');
     document.getElementById('side-menu').classList.toggle('active');
 }
 
 function toggleWarp() {
+    document.getElementById('side-menu').classList.remove('active');
     const w = document.getElementById('warpModal');
     const active = w.classList.toggle('active');
     if(active) document.getElementById('warpIn').focus();
@@ -242,7 +245,6 @@ function render() {
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     const moveSpeed = 12 / zoom;
     
-    // Keyboard movement stays active even if menus are open
     if(keys['KeyW'] || keys['ArrowUp']) camera.y -= moveSpeed;
     if(keys['KeyS'] || keys['ArrowDown']) camera.y += moveSpeed;
     if(keys['KeyA'] || keys['ArrowLeft']) camera.x -= moveSpeed;
@@ -323,7 +325,6 @@ function render() {
     requestAnimationFrame(render);
 }
 
-// Blocks interaction with tiles if clicking UI
 function isOverUI(e) { return e.target.closest('#hud, #top-right, #side-menu, .modal'); }
 
 window.addEventListener('keydown', e => {
