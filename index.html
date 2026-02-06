@@ -1,0 +1,437 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Infinite Minesweeper</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚩</text></svg>">
+    <style>
+        :root {
+            --bg: #1a1a1a; --panel: #2d2d2d; --text: #eee; --inset: #000; --outset: #444;
+            --accent: #ffffff;
+            --tile-shadow: #000000; --tile-highlight: #444444;
+        }
+        .light-mode {
+            --bg: #bdbdbd; --panel: #bdbdbd; --text: #000; --inset: #7b7b7b; --outset: #fff; 
+            --tile-shadow: #7b7b7b; --tile-highlight: #ffffff;
+        }
+        body { 
+            margin: 0; overflow: hidden; background: var(--bg); 
+            font-family: 'Segoe UI', sans-serif; touch-action: none; 
+            color: var(--accent); user-select: none; cursor: default;
+        }
+        canvas { display: block; image-rendering: pixelated; cursor: default; }
+
+
+        #hud {
+            position: absolute; top: 10px; left: 10px; z-index: 100;
+            background: var(--panel); border: 3px outset var(--outset);
+            width: 96px; padding: 3px; display: flex; flex-direction: column; gap: 3px;
+        }
+        #minimap-frame { width: 90px; height: 90px; border: 2px inset var(--outset); background: #000; }
+        #stats-bar {
+            width: 100%; background: #000; color: var(--accent);
+            font-family: 'Courier New', monospace; font-size: 11px;
+            padding: 2px 5px; border: 2px inset var(--inset); box-sizing: border-box;
+            display: flex; justify-content: space-between;
+        }
+
+
+        #top-right { position: absolute; top: 10px; right: 10px; display: flex; gap: 5px; z-index: 100; }
+        .sq-btn {
+            width: 40px; height: 40px; background: var(--panel); border: 3px outset var(--outset);
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; color: var(--accent);
+        }
+        .sq-btn:active { border-style: inset; }
+
+
+        #side-menu {
+            display: none; position: fixed; top: 55px; right: 10px; width: 220px;
+            background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 101;
+            color: var(--accent);
+        }
+        #side-menu.active { display: block; }
+        .menu-row { display: flex; justify-content: space-between; font-size: 11px; margin: 8px 0; font-family: monospace; }
+        
+        .modal {
+            display: none; position: fixed; top: 55px; right: 55px;
+            background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 200; 
+            text-align: center; color: var(--accent);
+        }
+        .modal.active { display: block; }
+
+
+        #cam-coords { 
+            position: absolute; bottom: 10px; right: 10px; 
+            font-family: monospace; font-size: 12px; 
+            background: var(--panel); border: 2px inset var(--outset);
+            padding: 3px 8px; pointer-events: none; color: var(--accent);
+        }
+
+
+        input[type="text"] {
+            width: 120px; padding: 5px; border: 2px inset var(--outset); 
+            background: #000; color: var(--accent);
+            font-family: monospace; outline: none;
+        }
+    </style>
+</head>
+<body>
+
+
+<div id="hud">
+    <div id="minimap-frame"><canvas id="minimap" width="90" height="90"></canvas></div>
+    <div id="stats-bar">
+        <span>D:<b id="det-count">0</b></span>
+        <span>F:<b id="flg-count">0</b></span>
+    </div>
+</div>
+
+
+<div id="top-right">
+    <div class="sq-btn" onclick="toggleWarp()">GO</div>
+    <div class="sq-btn" onclick="toggleMenu()">☰</div>
+</div>
+
+
+<div id="side-menu">
+    <div style="font-size: 10px; font-weight: bold; border-bottom: 1px solid var(--inset); margin-bottom: 5px;">SESSION STATS</div>
+    <div class="menu-row"><span>Revealed:</span><span id="menu-revealed">0</span></div>
+    <div class="menu-row"><span>Playtime:</span><span id="menu-time">0s</span></div>
+    
+    <div style="font-size: 10px; font-weight: bold; border-bottom: 1px solid var(--inset); margin: 15px 0 5px 0;">INTERFACE</div>
+    <button class="sq-btn" style="width:100%; height:25px; margin-bottom: 10px; font-size: 10px;" onclick="toggleTheme()">SWAP THEME</button>
+    <div class="menu-row">
+        <span>Accent Color:</span>
+        <input type="color" id="colorPicker" value="#ffffff" onchange="updateAccent(this.value)" style="border:none; background:none; height:20px; cursor:pointer;">
+    </div>
+    <button class="sq-btn" style="width:100%; height:30px; margin-top: 15px; font-size: 10px;" onclick="confirmReset()">REGENERATE WORLD</button>
+</div>
+
+
+<div id="warpModal" class="modal">
+    <strong>WARP TO</strong><br><br>
+    <input type="text" id="warpIn" placeholder="0, 0"><br><br>
+    <button class="sq-btn" style="width:100%; height:30px;" onclick="doWarp()">JUMP</button>
+</div>
+
+
+<div id="cam-coords">0, 0</div>
+<canvas id="gameCanvas"></canvas>
+
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const mCanvas = document.getElementById('minimap');
+const mCtx = mCanvas.getContext('2d');
+
+
+let TILE_SIZE = 32, zoom = 1.0, targetZoom = 1.0;
+let camera = { x: 0, y: 0 }; 
+let worldSeed = Math.floor(Math.random() * 999999);
+let startTime = Date.now(), totalPlayedTime = 0;
+let revealed = new Set(), flagged = new Set(), detonated = new Set();
+let isPaused = false, lastMouse = {x:0, y:0}, isDragging = false, dragMoved = false;
+let keys = {};
+let chordTarget = null;
+let lastRightClickTime = 0;
+
+
+function formatTime(ms) {
+    let s = Math.floor(ms / 1000);
+    let d = Math.floor(s / 86400); s %= 86400;
+    let h = Math.floor(s / 3600); s %= 3600;
+    let m = Math.floor(s / 60); s %= 60;
+    let res = "";
+    if (d > 0) res += d + "d ";
+    if (h > 0 || d > 0) res += h.toString().padStart(2, '0') + "h ";
+    if (m > 0 || h > 0 || d > 0) res += m.toString().padStart(2, '0') + "m ";
+    res += s.toString().padStart(2, '0') + "s";
+    return res;
+}
+
+
+function saveGame() {
+    const saveData = {
+        worldSeed, camera,
+        revealed: Array.from(revealed),
+        flagged: Array.from(flagged),
+        detonated: Array.from(detonated),
+        totalPlayedTime: totalPlayedTime + (Date.now() - startTime),
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+    };
+    localStorage.setItem('inf_minesweeper_save', JSON.stringify(saveData));
+}
+
+
+function loadGame() {
+    const raw = localStorage.getItem('inf_minesweeper_save');
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    worldSeed = data.worldSeed;
+    camera = data.camera;
+    revealed = new Set(data.revealed);
+    flagged = new Set(data.flagged);
+    detonated = new Set(data.detonated);
+    totalPlayedTime = data.totalPlayedTime || 0;
+    if(data.accent) {
+        updateAccent(data.accent);
+        document.getElementById('colorPicker').value = data.accent;
+    }
+}
+
+
+const getSeed = (x, y) => {
+    let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+};
+const hasMine = (x, y) => getSeed(x, y) < 0.15;
+const getCount = (x, y) => {
+    let c = 0;
+    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
+        if(i===0 && j===0) continue;
+        if(hasMine(x+i, y+j)) c++;
+    }
+    return c;
+};
+
+
+function reveal(x, y) {
+    if(revealed.size === 0) { while(hasMine(x,y) || getCount(x,y) > 0) worldSeed++; }
+    const k = `${x},${y}`;
+    if(revealed.has(k) || flagged.has(k)) return;
+    revealed.add(k);
+    if(hasMine(x,y)) { detonated.add(k); }
+    else if(getCount(x,y) === 0) {
+        for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) reveal(x+i, y+j);
+    }
+    saveGame();
+}
+
+
+function smartChord(x, y) {
+    const k = `${x},${y}`;
+    if (!revealed.has(k)) return;
+    let mines = getCount(x, y), currentFlags = 0, neighbors = [];
+    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
+        if(i===0 && j===0) continue;
+        let nk = `${x+i},${y+j}`;
+        if(flagged.has(nk) || detonated.has(nk)) currentFlags++;
+        if(!revealed.has(nk) && !flagged.has(nk)) neighbors.push({x: x+i, y: y+j});
+    }
+    if(currentFlags === mines) {
+        neighbors.forEach(n => reveal(n.x, n.y));
+        saveGame();
+    }
+}
+
+
+function toggleMenu() { 
+    const m = document.getElementById('side-menu');
+    const active = m.classList.toggle('active');
+    isPaused = active || document.getElementById('warpModal').classList.contains('active');
+}
+
+
+function toggleWarp() {
+    const w = document.getElementById('warpModal');
+    const active = w.classList.toggle('active');
+    isPaused = active || document.getElementById('side-menu').classList.contains('active');
+    if(active) document.getElementById('warpIn').focus();
+}
+
+
+function updateAccent(val) { 
+    document.documentElement.style.setProperty('--accent', val); 
+    saveGame();
+}
+
+
+function toggleTheme() { document.body.classList.toggle('light-mode'); }
+
+
+function doWarp() {
+    let p = document.getElementById('warpIn').value.split(',').map(Number);
+    if(!isNaN(p[0])) { camera.x = p[0] * TILE_SIZE; camera.y = (p[1]||0) * TILE_SIZE; }
+    document.getElementById('warpModal').classList.remove('active');
+    isPaused = document.getElementById('side-menu').classList.contains('active');
+    saveGame();
+}
+
+
+function confirmReset() {
+    if(confirm("Are you sure? This will delete all progress and generate a new seed.")) {
+        localStorage.removeItem('inf_minesweeper_save');
+        location.reload();
+    }
+}
+
+
+function render() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    const moveSpeed = 12 / zoom;
+    if(keys['KeyW'] || keys['ArrowUp']) camera.y -= moveSpeed;
+    if(keys['KeyS'] || keys['ArrowDown']) camera.y += moveSpeed;
+    if(keys['KeyA'] || keys['ArrowLeft']) camera.x -= moveSpeed;
+    if(keys['KeyD'] || keys['ArrowRight']) camera.x += moveSpeed;
+
+
+    zoom += (targetZoom - zoom) * 0.15;
+    const curSize = Math.round(TILE_SIZE * zoom);
+    const hw = canvas.width/2, hh = canvas.height/2;
+
+
+    const startX = Math.floor((camera.x - hw/zoom) / TILE_SIZE);
+    const startY = Math.floor((camera.y - hh/zoom) / TILE_SIZE);
+    const endX = startX + Math.ceil(canvas.width/curSize) + 2;
+    const endY = startY + Math.ceil(canvas.height/curSize) + 2;
+
+
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg');
+    ctx.fillRect(0,0, canvas.width, canvas.height);
+
+
+    for(let x=startX; x<endX; x++) {
+        for(let y=startY; y<endY; y++) {
+            const sx = Math.round((x * TILE_SIZE - camera.x) * zoom + hw);
+            const sy = Math.round((y * TILE_SIZE - camera.y) * zoom + hh);
+            const k = `${x},${y}`;
+            let isDepressed = chordTarget && Math.abs(x - chordTarget.x) <= 1 && Math.abs(y - chordTarget.y) <= 1;
+
+
+            if(!revealed.has(k)) {
+                if(isDepressed && !flagged.has(k)) {
+                    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
+                    ctx.strokeRect(sx, sy, curSize, curSize);
+                } else {
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-highlight');
+                    ctx.fillRect(sx, sy, curSize, 1); ctx.fillRect(sx, sy, 1, curSize);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-shadow');
+                    ctx.fillRect(sx+curSize-1, sy, 1, curSize); ctx.fillRect(sx, sy+curSize-1, curSize, 1);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--panel');
+                    ctx.fillRect(sx+1, sy+1, curSize-2, curSize-2);
+                    if(flagged.has(k)) {
+                        ctx.font = `${14*zoom}px Arial`; ctx.textAlign="center"; 
+                        ctx.fillText("🚩", sx + curSize/2, sy + curSize/1.3);
+                    }
+                }
+            } else {
+                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.5)" : "transparent";
+                ctx.fillRect(sx, sy, curSize, curSize);
+                ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
+                ctx.strokeRect(sx, sy, curSize, curSize);
+                if(hasMine(x,y)) {
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent');
+                    ctx.beginPath(); ctx.arc(sx+curSize/2, sy+curSize/2, curSize/4, 0, 7); ctx.fill();
+                } else {
+                    let n = getCount(x,y);
+                    if(n>0) {
+                        ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
+                        ctx.font = `bold ${16*zoom}px Arial`; ctx.textAlign="center";
+                        ctx.fillText(n, sx + curSize/2, sy + curSize/1.3);
+                    }
+                }
+            }
+        }
+    }
+
+
+    document.getElementById('det-count').innerText = detonated.size;
+    document.getElementById('flg-count').innerText = flagged.size;
+    document.getElementById('menu-revealed').innerText = revealed.size;
+    
+    let curTimeMs = (totalPlayedTime + (Date.now() - startTime));
+    document.getElementById('menu-time').innerText = formatTime(curTimeMs);
+    
+    const camX = Math.round(camera.x/TILE_SIZE), camY = Math.round(camera.y/TILE_SIZE);
+    document.getElementById('cam-coords').innerText = `${camX}, ${camY}`;
+    
+    mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,90,90);
+    revealed.forEach(rk => {
+        let [kx, ky] = rk.split(',').map(Number);
+        mCtx.fillStyle = detonated.has(rk) ? "red" : "#fff";
+        mCtx.fillRect(45 + (kx-camX), 45 + (ky-camY), 1, 1);
+    });
+    mCtx.strokeStyle = "var(--accent)"; mCtx.strokeRect(44, 44, 2, 2);
+    requestAnimationFrame(render);
+}
+
+
+function isOverUI(e) { return e.target.closest('#hud, #top-right, #side-menu, .modal'); }
+
+
+window.addEventListener('keydown', e => {
+    if(e.code === 'Enter' && document.getElementById('warpModal').classList.contains('active')) doWarp();
+    keys[e.code] = true;
+    if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","KeyW","KeyA","KeyS","KeyD"].includes(e.code)) e.preventDefault();
+});
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+
+window.addEventListener('wheel', e => {
+    e.preventDefault();
+    if(isPaused || isOverUI(e)) return;
+    const delta = e.deltaY > 0 ? 0.88 : 1.12;
+    targetZoom = Math.max(0.2, Math.min(targetZoom * delta, 4.0));
+}, {passive:false});
+
+
+window.addEventListener('mousedown', e => {
+    if(isPaused || isOverUI(e)) return;
+    lastMouse = {x: e.clientX, y: e.clientY};
+    isDragging = true; dragMoved = false;
+    const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
+    const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
+    const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+    if(e.button === 2) {
+        lastRightClickTime = Date.now();
+        let k = `${tx},${ty}`;
+        if(!revealed.has(k)) flagged.has(k) ? flagged.delete(k) : flagged.add(k);
+        saveGame();
+    } else if(e.button === 0 && revealed.has(`${tx},${ty}`)) {
+        chordTarget = {x: tx, y: ty};
+    }
+});
+
+
+window.addEventListener('mousemove', e => {
+    if(isDragging) {
+        let dx = e.clientX - lastMouse.x;
+        let dy = e.clientY - lastMouse.y;
+        if(Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            dragMoved = true;
+            chordTarget = null;
+            camera.x -= dx / zoom;
+            camera.y -= dy / zoom;
+        }
+    }
+    lastMouse = {x: e.clientX, y: e.clientY};
+});
+
+
+window.addEventListener('mouseup', e => {
+    if(!isPaused && isDragging && !dragMoved && !isOverUI(e)) {
+        if(Date.now() - lastRightClickTime > 150) { 
+            const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
+            const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
+            const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+            if(e.button === 0) {
+                if(chordTarget) smartChord(chordTarget.x, chordTarget.y);
+                else reveal(tx, ty);
+            }
+        }
+    }
+    if(isDragging && dragMoved) saveGame();
+    isDragging = false; chordTarget = null;
+});
+
+
+window.addEventListener('blur', () => { isDragging = false; chordTarget = null; });
+window.oncontextmenu = e => e.preventDefault();
+
+
+loadGame();
+render();
+</script>
+</body>
+</html>
