@@ -3,6 +3,7 @@
 <head>
     <title>Infinite Minesweeper</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚩</text></svg>">
     <style>
         :root {
             --bg: #1a1a1a; --panel: #2d2d2d; --text: #eee; --inset: #000; --outset: #444;
@@ -13,28 +14,71 @@
             --bg: #bdbdbd; --panel: #bdbdbd; --text: #000; --inset: #7b7b7b; --outset: #fff; 
             --tile-shadow: #7b7b7b; --tile-highlight: #ffffff;
         }
-        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; touch-action: none; color: var(--accent); user-select: none; cursor: default; }
+        body { 
+            margin: 0; overflow: hidden; background: var(--bg); 
+            font-family: 'Segoe UI', sans-serif; touch-action: none; 
+            color: var(--accent); user-select: none; cursor: default;
+        }
         canvas { display: block; image-rendering: pixelated; }
 
-        #hud { position: absolute; top: 10px; left: 10px; z-index: 100; background: var(--panel); border: 3px outset var(--outset); width: 110px; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
+        #hud {
+            position: absolute; top: 10px; left: 10px; z-index: 100;
+            background: var(--panel); border: 3px outset var(--outset);
+            width: 110px; padding: 5px; display: flex; flex-direction: column; gap: 5px;
+        }
         #minimap-frame { width: 100px; height: 100px; border: 2px inset var(--outset); background: #000; }
-        #stats-bar { width: 100%; background: #000; color: var(--accent); font-family: 'Courier New', monospace; font-size: 14px; padding: 4px 5px; border: 2px inset var(--inset); box-sizing: border-box; display: flex; justify-content: space-between; }
+        #stats-bar {
+            width: 100%; background: #000; color: var(--accent);
+            font-family: 'Courier New', monospace; font-size: 14px;
+            padding: 4px 5px; border: 2px inset var(--inset); box-sizing: border-box;
+            display: flex; justify-content: space-between;
+        }
+
         #top-right { position: absolute; top: 10px; right: 10px; display: flex; gap: 8px; z-index: 100; }
-        .sq-btn { width: 50px; height: 50px; background: var(--panel); border: 3px outset var(--outset); cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--accent); font-size: 18px; }
-        #side-menu { display: none; position: fixed; top: 70px; right: 10px; width: 240px; background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 101; color: var(--accent); box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .sq-btn {
+            width: 50px; height: 50px; background: var(--panel); border: 3px outset var(--outset);
+            cursor: pointer; display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; color: var(--accent); font-size: 18px;
+        }
+        .sq-btn:active { border-style: inset; }
+
+        #side-menu {
+            display: none; position: fixed; top: 70px; right: 10px; width: 240px;
+            background: var(--panel); border: 3px outset var(--outset); padding: 15px; z-index: 101;
+            color: var(--accent); box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
         #side-menu.active { display: block; }
         .menu-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; margin: 12px 0; font-family: monospace; }
-        .modal { display: none; position: fixed; top: 70px; right: 10px; left: 10px; background: var(--panel); border: 3px outset var(--outset); padding: 20px; z-index: 200; text-align: center; color: var(--accent); }
+        
+        .modal {
+            display: none; position: fixed; top: 70px; right: 10px; left: 10px;
+            background: var(--panel); border: 3px outset var(--outset); padding: 20px; z-index: 200; 
+            text-align: center; color: var(--accent);
+        }
         .modal.active { display: block; }
-        #cam-coords { position: absolute; bottom: 10px; right: 10px; font-family: monospace; font-size: 14px; background: var(--panel); border: 2px inset var(--outset); padding: 5px 10px; pointer-events: none; color: var(--accent); }
-        select, input[type="text"] { padding: 5px; border: 2px inset var(--outset); background: #000; color: var(--accent); font-family: monospace; outline: none; }
+
+        #cam-coords { 
+            position: absolute; bottom: 10px; right: 10px; 
+            font-family: monospace; font-size: 14px; 
+            background: var(--panel); border: 2px inset var(--outset);
+            padding: 5px 10px; pointer-events: none; color: var(--accent);
+        }
+
+        select, input[type="text"] {
+            padding: 5px; border: 2px inset var(--outset); 
+            background: #000; color: var(--accent);
+            font-family: monospace; outline: none;
+        }
     </style>
 </head>
 <body>
 
 <div id="hud">
     <div id="minimap-frame"><canvas id="minimap" width="100" height="100"></canvas></div>
-    <div id="stats-bar"><span>D:<b id="det-count">0</b></span><span>F:<b id="flg-count">0</b></span></div>
+    <div id="stats-bar">
+        <span>D:<b id="det-count">0</b></span>
+        <span>F:<b id="flg-count">0</b></span>
+    </div>
 </div>
 
 <div id="top-right">
@@ -76,7 +120,7 @@
 
 <script>
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d', { alpha: false });
+const ctx = canvas.getContext('2d');
 const mCanvas = document.getElementById('minimap');
 const mCtx = mCanvas.getContext('2d');
 
@@ -85,6 +129,7 @@ let camera = { x: 0, y: 0 };
 let worldSeed = Math.floor(Math.random() * 999999);
 let mineDensity = 0.15;
 
+// Active Timer Logic
 let startTime = Date.now();
 let totalPlayedTime = 0;
 let isTabActive = true;
@@ -93,10 +138,18 @@ let revealed = new Set(), flagged = new Set(), detonated = new Set();
 let lastMouse = {x:0, y:0}, isDragging = false, dragMoved = false;
 let keys = {};
 let chordTarget = null;
+let touchTimer = null;
 
+// Tab visibility listener
 document.addEventListener("visibilitychange", () => {
-    if (document.hidden) { isTabActive = false; totalPlayedTime += (Date.now() - startTime); saveGame(); }
-    else { isTabActive = true; startTime = Date.now(); }
+    if (document.hidden) {
+        isTabActive = false;
+        totalPlayedTime += (Date.now() - startTime);
+        saveGame();
+    } else {
+        isTabActive = true;
+        startTime = Date.now();
+    }
 });
 
 function formatTime(ms) {
@@ -104,12 +157,23 @@ function formatTime(ms) {
     let d = Math.floor(s / 86400); s %= 86400;
     let h = Math.floor(s / 3600); s %= 3600;
     let m = Math.floor(s / 60); s %= 60;
-    let res = (d > 0 ? d + "d " : "") + (h > 0 || d > 0 ? h.toString().padStart(2, '0') + "h " : "") + (m > 0 || h > 0 || d > 0 ? m.toString().padStart(2, '0') + "m " : "") + s.toString().padStart(2, '0') + "s";
+    let res = "";
+    if (d > 0) res += d + "d ";
+    if (h > 0 || d > 0) res += h.toString().padStart(2, '0') + "h ";
+    if (m > 0 || h > 0 || d > 0) res += m.toString().padStart(2, '0') + "m ";
+    res += s.toString().padStart(2, '0') + "s";
     return res;
 }
 
 function saveGame() {
-    const saveData = { worldSeed, camera, mineDensity, revealed: Array.from(revealed), flagged: Array.from(flagged), detonated: Array.from(detonated), totalPlayedTime: totalPlayedTime + (isTabActive ? (Date.now() - startTime) : 0), accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+    const saveData = {
+        worldSeed, camera, mineDensity,
+        revealed: Array.from(revealed),
+        flagged: Array.from(flagged),
+        detonated: Array.from(detonated),
+        totalPlayedTime: totalPlayedTime + (isTabActive ? (Date.now() - startTime) : 0),
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
+    };
     localStorage.setItem('inf_minesweeper_save', JSON.stringify(saveData));
 }
 
@@ -117,26 +181,44 @@ function loadGame() {
     const raw = localStorage.getItem('inf_minesweeper_save');
     if (!raw) return;
     const data = JSON.parse(raw);
-    worldSeed = data.worldSeed; camera = data.camera; mineDensity = data.mineDensity || 0.15;
+    worldSeed = data.worldSeed;
+    camera = data.camera;
+    mineDensity = data.mineDensity || 0.15;
     document.getElementById('diffSelect').value = mineDensity;
-    revealed = new Set(data.revealed); flagged = new Set(data.flagged); detonated = new Set(data.detonated);
+    revealed = new Set(data.revealed);
+    flagged = new Set(data.flagged);
+    detonated = new Set(data.detonated);
     totalPlayedTime = data.totalPlayedTime || 0;
-    if(data.accent) { updateAccent(data.accent); document.getElementById('colorPicker').value = data.accent; }
+    if(data.accent) {
+        updateAccent(data.accent);
+        document.getElementById('colorPicker').value = data.accent;
+    }
 }
 
+// Safety Gate for Difficulty
 function changeDifficulty(val) {
     if(confirm("Changing difficulty requires a world reset. Continue?")) {
         mineDensity = parseFloat(val);
         revealed.clear(); flagged.clear(); detonated.clear();
-        worldSeed = Math.floor(Math.random() * 999999); camera = {x:0, y:0}; saveGame();
-    } else { document.getElementById('diffSelect').value = mineDensity; }
+        worldSeed = Math.floor(Math.random() * 999999);
+        camera = {x:0, y:0};
+        saveGame();
+    } else {
+        document.getElementById('diffSelect').value = mineDensity;
+    }
 }
 
-const getSeed = (x, y) => { let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453; return n - Math.floor(n); };
+const getSeed = (x, y) => {
+    let n = Math.sin((x + worldSeed) * 12.9898 + (y + worldSeed) * 78.233) * 43758.5453;
+    return n - Math.floor(n);
+};
 const hasMine = (x, y) => getSeed(x, y) < mineDensity;
 const getCount = (x, y) => {
     let c = 0;
-    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) { if(i===0 && j===0) continue; if(hasMine(x+i, y+j)) c++; }
+    for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
+        if(i===0 && j===0) continue;
+        if(hasMine(x+i, y+j)) c++;
+    }
     return c;
 };
 
@@ -146,22 +228,34 @@ function reveal(x, y) {
     if(revealed.has(k) || flagged.has(k)) return;
     revealed.add(k);
     if(hasMine(x,y)) { detonated.add(k); }
-    else if(getCount(x,y) === 0) { for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) reveal(x+i, y+j); }
+    else if(getCount(x,y) === 0) {
+        for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) reveal(x+i, y+j);
+    }
     saveGame();
 }
 
-function toggleFlag(x, y) { let k = `${x},${y}`; if(!revealed.has(k)) { flagged.has(k) ? flagged.delete(k) : flagged.add(k); saveGame(); } }
+function toggleFlag(x, y) {
+    let k = `${x},${y}`;
+    if(!revealed.has(k)) {
+        flagged.has(k) ? flagged.delete(k) : flagged.add(k);
+        saveGame();
+    }
+}
 
 function smartChord(x, y) {
-    const k = `${x},${y}`; if (!revealed.has(k)) return;
-    let mines = getCount(x, y), flags = 0, neighbors = [];
+    const k = `${x},${y}`;
+    if (!revealed.has(k)) return;
+    let mines = getCount(x, y), currentFlags = 0, neighbors = [];
     for(let i=-1; i<=1; i++) for(let j=-1; j<=1; j++) {
         if(i===0 && j===0) continue;
         let nk = `${x+i},${y+j}`;
-        if(flagged.has(nk) || detonated.has(nk)) flags++;
+        if(flagged.has(nk) || detonated.has(nk)) currentFlags++;
         if(!revealed.has(nk) && !flagged.has(nk)) neighbors.push({x: x+i, y: y+j});
     }
-    if(flags === mines) { neighbors.forEach(n => reveal(n.x, n.y)); saveGame(); }
+    if(currentFlags === mines) {
+        neighbors.forEach(n => reveal(n.x, n.y));
+        saveGame();
+    }
 }
 
 function toggleMenu() { document.getElementById('side-menu').classList.toggle('active'); }
@@ -180,66 +274,71 @@ function render() {
     if(keys['KeyD'] || keys['ArrowRight']) camera.x += moveSpeed;
 
     zoom += (targetZoom - zoom) * 0.15;
-    
+    const curSize = Math.round(TILE_SIZE * zoom);
+    const hw = canvas.width/2, hh = canvas.height/2;
+
+    const startX = Math.floor((camera.x - hw/zoom) / TILE_SIZE);
+    const startY = Math.floor((camera.y - hh/zoom) / TILE_SIZE);
+    const endX = startX + Math.ceil(canvas.width/curSize) + 2;
+    const endY = startY + Math.ceil(canvas.height/curSize) + 2;
+
     ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--bg');
     ctx.fillRect(0,0, canvas.width, canvas.height);
 
-    ctx.save();
-    ctx.translate(canvas.width / 2, canvas.height / 2);
-    ctx.scale(zoom, zoom);
-    ctx.translate(-camera.x, -camera.y);
-
-    const viewW = canvas.width / zoom, viewH = canvas.height / zoom;
-    const startX = Math.floor((camera.x - viewW/2) / TILE_SIZE);
-    const startY = Math.floor((camera.y - viewH/2) / TILE_SIZE);
-    const endX = startX + Math.ceil(viewW / TILE_SIZE) + 1;
-    const endY = startY + Math.ceil(viewH / TILE_SIZE) + 1;
-
-    for(let x=startX; x<=endX; x++) {
-        for(let y=startY; y<=endY; y++) {
+    for(let x=startX; x<endX; x++) {
+        for(let y=startY; y<endY; y++) {
+            const sx = Math.round((x * TILE_SIZE - camera.x) * zoom + hw);
+            const sy = Math.round((y * TILE_SIZE - camera.y) * zoom + hh);
             const k = `${x},${y}`;
-            const px = x * TILE_SIZE, py = y * TILE_SIZE;
-            
+            let isDepressed = chordTarget && Math.abs(x - chordTarget.x) <= 1 && Math.abs(y - chordTarget.y) <= 1;
+
             if(!revealed.has(k)) {
-                ctx.fillStyle = flagged.has(k) ? "#ff3333" : "var(--panel)";
-                ctx.fillRect(px, py, TILE_SIZE + 0.5, TILE_SIZE + 0.5); // 0.5px overlap kills stripes
-                
-                if (zoom > 0.5) {
-                    ctx.strokeStyle = "var(--tile-shadow)";
-                    ctx.lineWidth = 1/zoom;
-                    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+                if(isDepressed && !flagged.has(k)) {
+                    ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
+                    ctx.strokeRect(sx, sy, curSize, curSize);
+                } else {
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-highlight');
+                    ctx.fillRect(sx, sy, curSize, 1); ctx.fillRect(sx, sy, 1, curSize);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--tile-shadow');
+                    ctx.fillRect(sx+curSize-1, sy, 1, curSize); ctx.fillRect(sx, sy+curSize-1, curSize, 1);
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--panel');
+                    ctx.fillRect(sx+1, sy+1, curSize-2, curSize-2);
+                    if(flagged.has(k)) {
+                        ctx.font = `${18*zoom}px Arial`; ctx.textAlign="center"; 
+                        ctx.fillText("🚩", sx + curSize/2, sy + curSize/1.3);
+                    }
                 }
             } else {
-                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.6)" : "var(--bg)";
-                ctx.fillRect(px, py, TILE_SIZE + 0.5, TILE_SIZE + 0.5);
-                
-                if (zoom > 0.4) {
-                    if(hasMine(x,y)) {
-                        ctx.fillStyle = "var(--accent)";
-                        ctx.beginPath(); ctx.arc(px+TILE_SIZE/2, py+TILE_SIZE/2, TILE_SIZE/4, 0, 7); ctx.fill();
-                    } else {
-                        let n = getCount(x,y);
-                        if(n > 0 && zoom > 0.5) {
-                            ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
-                            ctx.font = `bold ${TILE_SIZE/2}px Arial`; ctx.textAlign="center"; ctx.textBaseline="middle";
-                            ctx.fillText(n, px+TILE_SIZE/2, py+TILE_SIZE/2);
-                        }
+                ctx.fillStyle = detonated.has(k) ? "rgba(255,0,0,0.5)" : "transparent";
+                ctx.fillRect(sx, sy, curSize, curSize);
+                ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--inset');
+                ctx.strokeRect(sx, sy, curSize, curSize);
+                if(hasMine(x,y)) {
+                    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--accent');
+                    ctx.beginPath(); ctx.arc(sx+curSize/2, sy+curSize/2, curSize/4, 0, 7); ctx.fill();
+                } else {
+                    let n = getCount(x,y);
+                    if(n>0) {
+                        ctx.fillStyle = ["","blue","#2ecc71","#e74c3c","#3498db","brown","cyan","black","gray"][n];
+                        ctx.font = `bold ${20*zoom}px Arial`; ctx.textAlign="center";
+                        ctx.fillText(n, sx + curSize/2, sy + curSize/1.3);
                     }
                 }
             }
         }
     }
-    ctx.restore();
 
     document.getElementById('det-count').innerText = detonated.size;
     document.getElementById('flg-count').innerText = flagged.size;
     document.getElementById('menu-revealed').innerText = revealed.size;
+    
     let currentLap = isTabActive ? (Date.now() - startTime) : 0;
     document.getElementById('menu-time').innerText = formatTime(totalPlayedTime + currentLap);
-    document.getElementById('cam-coords').innerText = `${Math.floor(camera.x/TILE_SIZE)}, ${Math.floor(camera.y/TILE_SIZE)}`;
+    
+    const camX = Math.round(camera.x/TILE_SIZE), camY = Math.round(camera.y/TILE_SIZE);
+    document.getElementById('cam-coords').innerText = `${camX}, ${camY}`;
     
     mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,100,100);
-    const camX = camera.x/TILE_SIZE, camY = camera.y/TILE_SIZE;
     revealed.forEach(rk => {
         let [kx, ky] = rk.split(',').map(Number);
         mCtx.fillStyle = detonated.has(rk) ? "red" : "#fff";
@@ -248,22 +347,52 @@ function render() {
     requestAnimationFrame(render);
 }
 
-canvas.addEventListener('wheel', e => { e.preventDefault(); targetZoom = Math.max(0.01, Math.min(targetZoom * (e.deltaY > 0 ? 0.85 : 1.15), 5.0)); }, {passive:false});
-canvas.onmousedown = e => { if(e.target.id !== 'gameCanvas') return; isDragging = true; lastMouse = {x: e.clientX, y: e.clientY}; dragMoved = false; };
-window.onmousemove = e => { if(isDragging) { let dx = e.clientX - lastMouse.x, dy = e.clientY - lastMouse.y; if(Math.abs(dx)>2 || Math.abs(dy)>2) { camera.x -= dx/zoom; camera.y -= dy/zoom; dragMoved = true; } lastMouse = {x: e.clientX, y: e.clientY}; } };
-window.onmouseup = e => {
-    if(isDragging && !dragMoved) {
-        const mx = (e.clientX - canvas.width/2)/zoom + camera.x, my = (e.clientY - canvas.height/2)/zoom + camera.y;
-        const tx = Math.floor(mx/TILE_SIZE), ty = Math.floor(my/TILE_SIZE);
-        if(e.button === 0) { if(revealed.has(`${tx},${ty}`)) smartChord(tx, ty); else reveal(tx, ty); }
-        else if(e.button === 2) toggleFlag(tx, ty);
+// Event Listeners for Chords and Dragging
+canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    targetZoom = Math.max(0.2, Math.min(targetZoom * delta, 3.0));
+}, {passive:false});
+
+window.addEventListener('mousedown', e => {
+    if(e.target.id !== 'gameCanvas') return;
+    lastMouse = {x: e.clientX, y: e.clientY};
+    isDragging = true; dragMoved = false;
+    const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
+    const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
+    const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+    if(e.button === 0 && revealed.has(`${tx},${ty}`)) { chordTarget = {x: tx, y: ty}; }
+});
+
+window.addEventListener('mousemove', e => {
+    if(isDragging) {
+        let dx = e.clientX - lastMouse.x, dy = e.clientY - lastMouse.y;
+        if(Math.abs(dx) > 3 || Math.abs(dy) > 3) { dragMoved = true; camera.x -= dx / zoom; camera.y -= dy / zoom; }
     }
-    isDragging = false;
-};
+    lastMouse = {x: e.clientX, y: e.clientY};
+});
+
+window.addEventListener('mouseup', e => {
+    if(isDragging && !dragMoved && e.button === 0) {
+        const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
+        const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
+        const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+        if(chordTarget) smartChord(chordTarget.x, chordTarget.y); else reveal(tx, ty);
+    } else if (!isDragging && !dragMoved && e.button === 2) {
+        const wx = (e.clientX - canvas.width/2)/zoom + camera.x;
+        const wy = (e.clientY - canvas.height/2)/zoom + camera.y;
+        const tx = Math.floor(wx/TILE_SIZE), ty = Math.floor(wy/TILE_SIZE);
+        toggleFlag(tx, ty);
+    }
+    isDragging = false; chordTarget = null;
+});
+
+window.oncontextmenu = e => e.preventDefault();
 window.addEventListener('keydown', e => keys[e.code] = true);
 window.addEventListener('keyup', e => keys[e.code] = false);
-window.oncontextmenu = e => e.preventDefault();
-loadGame(); render();
+
+loadGame();
+render();
 </script>
 </body>
 </html>
